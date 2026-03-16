@@ -181,61 +181,147 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, signInAnonymously, getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Config
+        const SUPABASE_URL = 'https://mctofxmujwluexoqvlza.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_VX-r5hO9PEcq2d4dsCrY7A_H4UBlOwF';
 
-        const apiKey = "";
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'digitopia-default';
+        // Create Supabase client
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let activities = [];
         let stats = { data: "42.8 GB", cards: "124" };
         let currentFilter = 'all';
+        let isOnline = true;
 
-        // --- AUTH & INITIALIZATION ---
+        // --- YEREL DEPOLAMA (localStorage) ---
+        const storage = {
+            getActivities: () => JSON.parse(localStorage.getItem('digitopia_activities') || '[]'),
+            setActivities: (data) => localStorage.setItem('digitopia_activities', JSON.stringify(data)),
+            getStats: () => JSON.parse(localStorage.getItem('digitopia_stats') || '{"data":"42.8 GB","cards":"124"}'),
+            setStats: (data) => localStorage.setItem('digitopia_stats', JSON.stringify(data))
+        };
+
+        // --- INITIALIZATION ---
         const init = async () => {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                // Önce localStorage'dan yükle
+                activities = storage.getActivities();
+                stats = storage.getStats();
+                updateUI();
+
+                // Sonra Supabase'den senkronize et
+                await syncFromSupabase();
+                
+                // Real-time listener başlat
+                startRealtimeListener();
+                
+                isOnline = true;
+                updateConnectionStatus();
             } catch (err) {
-                console.error("Auth failed:", err);
+                console.error("Init error:", err);
+                isOnline = false;
+                updateConnectionStatus();
+            }
+
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+        };
+
+        // --- SUPABASE SYNC ---
+        const syncFromSupabase = async () => {
+            try {
+                // Activities yükle
+                const { data: activitiesData, error: activitiesError } = await supabase
+                    .from('activities')
+                    .select('*');
+                
+                if (activitiesError) throw activitiesError;
+                
+                if (activitiesData && activitiesData.length > 0) {
+                    activities = activitiesData.map(a => ({ 
+                        id: a.id, 
+                        day: a.day, 
+                        time: a.time, 
+                        name: a.name, 
+                        lead: a.lead, 
+                        interact: a.interact, 
+                        process: a.process,
+                        goal: a.goal,
+                        method: a.method,
+                        duration: a.duration
+                    }));
+                    storage.setActivities(activities);
+                    activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+                }
+
+                // Stats yükle
+                const { data: statsData, error: statsError } = await supabase
+                    .from('stats')
+                    .select('*')
+                    .limit(1);
+                
+                if (statsError && statsError.code !== 'PGRST116') throw statsError;
+                
+                if (statsData && statsData.length > 0) {
+                    stats = { data: statsData[0].data, cards: statsData[0].cards };
+                    storage.setStats(stats);
+                }
+
+                updateUI();
+            } catch (err) {
+                console.error("Supabase sync error:", err);
+                // localStorage'dan devam et
             }
         };
 
-        onAuthStateChanged(auth, (user) => {
-            if (!user) return;
-            
-            // Stats Listener
-            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), (snapshot) => {
-                if (snapshot.exists()) {
-                    stats = snapshot.data();
-                    document.getElementById('stat-data').innerText = stats.data;
-                    document.getElementById('stat-cards').innerText = stats.cards;
-                } else {
-                    // İlk kez oluştur
-                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), stats);
-                }
-            }, (err) => console.error("Stats error", err));
+        // --- REAL-TIME LISTENER ---
+        const startRealtimeListener = () => {
+            // Activities listener
+            supabase
+                .channel('public:activities')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
+                    console.log('Activity change:', payload);
+                    syncFromSupabase();
+                })
+                .subscribe();
 
-            // Activities Listener
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'activities'), (snapshot) => {
-                activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Sırala: Gün ve Saat
-                activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
-                renderTable();
-                document.getElementById('loading').style.opacity = '0';
-                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
-            }, (err) => console.error("Data error", err));
-        });
+            // Stats listener
+            supabase
+                .channel('public:stats')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'stats' }, (payload) => {
+                    console.log('Stats change:', payload);
+                    syncFromSupabase();
+                })
+                .subscribe();
+        };
+
+        // --- UPDATE UI ---
+        const updateUI = () => {
+            renderTable();
+            document.getElementById('stat-data').innerText = stats.data;
+            document.getElementById('stat-cards').innerText = stats.cards;
+            document.getElementById('stat-total').innerText = activities.length + " Seans";
+        };
+
+        // --- CONNECTION STATUS ---
+        const updateConnectionStatus = () => {
+            const status = document.getElementById('connection-status');
+            if (isOnline) {
+                status.innerText = 'Bağlı ✓';
+                status.className = 'text-[10px] text-emerald-600 font-bold uppercase';
+            } else {
+                status.innerText = 'Çevrimdışı';
+                status.className = 'text-[10px] text-red-600 font-bold uppercase';
+            }
+        };
+
+        // Network detection
+        window.addEventListener('online', () => { isOnline = true; updateConnectionStatus(); syncFromSupabase(); });
+        window.addEventListener('offline', () => { isOnline = false; updateConnectionStatus(); });
 
         init();
 
@@ -304,34 +390,88 @@
 
         document.getElementById('activityForm').onsubmit = async (e) => {
             e.preventDefault();
-            if (!auth.currentUser) return;
             const id = document.getElementById('editId').value || crypto.randomUUID();
             const data = {
+                id: id,
                 day: parseInt(document.getElementById('formDay').value),
                 time: document.getElementById('formTime').value,
                 name: document.getElementById('formName').value,
                 lead: document.getElementById('formLead').value,
                 interact: parseInt(document.getElementById('formInteract').value),
                 process: document.getElementById('formProcess').value,
+                goal: "",
                 method: "Sync Method",
                 duration: "Managed"
             };
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'activities', id), data);
-            closeModal();
+
+            try {
+                // UPSERT - Güncelle veya ekle
+                const { error } = await supabase
+                    .from('activities')
+                    .upsert(data, { onConflict: 'id' });
+                
+                if (error) {
+                    console.error('Supabase error:', error);
+                    throw error;
+                }
+
+                // localStorage da güncelle
+                const idx = activities.findIndex(a => a.id === id);
+                if (idx >= 0) {
+                    activities[idx] = data;
+                } else {
+                    activities.push(data);
+                }
+                activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+                storage.setActivities(activities);
+                updateUI();
+                closeModal();
+            } catch (err) {
+                alert('Hata: ' + err.message);
+            }
         };
 
         window.deleteActivity = async (id) => {
-            if (confirm('Bu etkinlik buluttan kalıcı olarak silinsin mi?') && auth.currentUser) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'activities', id));
+            if (!confirm('Bu etkinlik silinsin mi?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('activities')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // localStorage dan sil
+                activities = activities.filter(a => a.id !== id);
+                storage.setActivities(activities);
+                updateUI();
+            } catch (err) {
+                alert('Hata: ' + err.message);
             }
         };
 
         window.editStat = async (field, label) => {
             const current = stats[field];
             const newVal = prompt(`${label} yeni değerini girin:`, current);
-            if (newVal !== null && auth.currentUser) {
+            if (newVal === null) return;
+
+            try {
                 const newStats = { ...stats, [field]: newVal };
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), newStats);
+
+                // Supabase'de güncelle
+                const { error } = await supabase
+                    .from('stats')
+                    .upsert({ id: 1, ...newStats }, { onConflict: 'id' });
+
+                if (error) throw error;
+
+                // localStorage güncelle
+                stats = newStats;
+                storage.setStats(stats);
+                updateUI();
+            } catch (err) {
+                alert('Hata: ' + err.message);
             }
         };
 
