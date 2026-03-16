@@ -3,61 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGITOPIA | Yönetim Paneli v2.0</title>
+    <title>DIGITOPIA | Yönetim Paneli v2.0 (Sync)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PDF Kütüphanesi -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
         h1, h2, h3, .nav-item { font-family: 'Space Grotesk', sans-serif; }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-        }
-
-        .tab-active { 
-            background-color: #10b981 !important; 
-            color: white !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); }
+        .tab-active { background-color: #10b981 !important; color: white !important; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
         .interactivity-star { color: #f59e0b; }
-        
         .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
-
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
-            .glass-card { box-shadow: none; border: 1px solid #eee; }
-        }
-
-        .status-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 99px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
+        @media print { .no-print { display: none !important; } body { background: white; } .glass-card { box-shadow: none; border: 1px solid #eee; } }
+        .status-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 700; text-transform: uppercase; }
+        .loading-overlay { position: fixed; inset: 0; background: white; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
     </style>
 </head>
 <body class="antialiased">
 
+    <!-- Yükleme Ekranı -->
+    <div id="loading" class="loading-overlay">
+        <div class="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 font-bold text-slate-500 uppercase tracking-widest text-xs">Bulut Verileri Senkronize Ediliyor...</p>
+    </div>
+
     <!-- Navigasyon -->
     <nav class="no-print bg-white/70 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-[1500px] mx-auto px-6 h-20 flex items-center justify-between">
+        <div class="max-w-[1400px] mx-auto px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
                     <i class="fas fa-leaf text-xl"></i>
                 </div>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-900 leading-none">DIGI<span class="text-emerald-600">TOPIA</span></h1>
-                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Management System</span>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Live Sync Management</span>
                 </div>
             </div>
             
@@ -72,17 +53,17 @@
 
             <div class="flex items-center gap-4">
                 <div class="text-right hidden sm:block">
-                    <p class="text-xs font-bold text-slate-900">BURAK</p>
-                    <p class="text-[10px] text-emerald-600 font-bold">Kordinatör Paneli</p>
+                    <p class="text-xs font-bold text-slate-900">BULUT PANELİ</p>
+                    <p class="text-[10px] text-emerald-600 font-bold uppercase" id="connection-status">Bağlı</p>
                 </div>
                 <div class="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-                    <img src="https://ui-avatars.com/api/?name=Burak+Fidan&background=059669&color=fff" alt="Avatar">
+                    <img src="https://ui-avatars.com/api/?name=Admin+Sync&background=059669&color=fff" alt="Avatar">
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-[1500px] mx-auto px-6 py-8">
+    <main class="max-w-[1400px] mx-auto px-6 py-8">
         
         <!-- Dashboard Stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 no-print">
@@ -93,40 +74,40 @@
             <div class="glass-card p-6 rounded-3xl border-l-4 border-l-blue-500">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-1">Silinen Toplam Veri</p>
                 <div class="flex items-center gap-3">
-                    <h3 class="text-3xl font-bold text-blue-600" id="stat-data">42.8 GB</h3>
-                    <button onclick="editStat('stat-data', 'Silinen Veri (GB)')" class="text-slate-300 hover:text-blue-500 transition"><i class="fas fa-edit text-xs"></i></button>
+                    <h3 class="text-3xl font-bold text-blue-600" id="stat-data">...</h3>
+                    <button onclick="editStat('data', 'Silinen Veri (GB)')" class="text-slate-300 hover:text-blue-500 transition"><i class="fas fa-edit text-xs"></i></button>
                 </div>
             </div>
             <div class="glass-card p-6 rounded-3xl border-l-4 border-l-emerald-500">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-1">Üretilen UNO Kartları</p>
                 <div class="flex items-center gap-3">
-                    <h3 class="text-3xl font-bold text-emerald-600" id="stat-cards">124</h3>
-                    <button onclick="editStat('stat-cards', 'Kart Sayısı')" class="text-slate-300 hover:text-emerald-500 transition"><i class="fas fa-edit text-xs"></i></button>
+                    <h3 class="text-3xl font-bold text-emerald-600" id="stat-cards">...</h3>
+                    <button onclick="editStat('cards', 'Kart Sayısı')" class="text-slate-300 hover:text-emerald-500 transition"><i class="fas fa-edit text-xs"></i></button>
                 </div>
             </div>
             <div class="glass-card p-6 rounded-3xl border-l-4 border-l-amber-500">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-1">Proje Durumu</p>
-                <h3 class="text-3xl font-bold text-amber-600 uppercase italic">Aktif</h3>
+                <h3 class="text-3xl font-bold text-amber-600 uppercase italic">Canlı Yayında</h3>
             </div>
         </div>
 
         <!-- Filtreler ve Arama -->
         <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-8 no-print">
-            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <div id="tabs" class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 <button onclick="filterDay('all')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500 tab-active">TÜMÜ</button>
-                <button onclick="filterDay('2')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500">GÜN 2</button>
-                <button onclick="filterDay('3')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500">GÜN 3</button>
-                <button onclick="filterDay('5')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500">GÜN 5</button>
-                <button onclick="filterDay('6')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500">GÜN 6</button>
-                <button onclick="filterDay('7')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold transition hover:border-emerald-500">GÜN 7</button>
+                <button onclick="filterDay('2')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold">GÜN 2</button>
+                <button onclick="filterDay('3')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold">GÜN 3</button>
+                <button onclick="filterDay('5')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold">GÜN 5</button>
+                <button onclick="filterDay('6')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold">GÜN 6</button>
+                <button onclick="filterDay('7')" class="day-tab px-5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold">GÜN 7</button>
             </div>
             <div class="relative w-full lg:w-96">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Etkinlik, sorumlu veya yöntem ara..." class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Etkinlik veya sorumlu ara..." class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition">
             </div>
         </div>
 
-        <!-- Tablo Konteynırı -->
+        <!-- Tablo -->
         <div id="pdf-content" class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse">
@@ -135,24 +116,19 @@
                             <th class="px-6 py-5 text-left">Zamanlama</th>
                             <th class="px-6 py-5 text-left">Etkinlik</th>
                             <th class="px-6 py-5 text-left">Sorumlu</th>
-                            <th class="px-6 py-5 text-left">Yöntem & Süreç</th>
+                            <th class="px-6 py-5 text-left">Metodoloji & Süreç</th>
                             <th class="px-6 py-5 text-left">Kazanım</th>
                             <th class="px-6 py-5 text-center">İnteraktiflik</th>
                             <th class="px-6 py-5 text-right no-print">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <!-- JS ile dolacak -->
+                        <!-- Bulut verisi ile dolacak -->
                     </tbody>
                 </table>
             </div>
         </div>
-
     </main>
-
-    <footer class="no-print mt-12 py-10 text-center border-t border-slate-200">
-        <p class="text-slate-400 text-sm font-bold uppercase tracking-widest">DIGITOPIA Executive Dashboard // MADE BY BURAK FIDAN</p>
-    </footer>
 
     <!-- EDİTÖR MODAL -->
     <div id="editModal" class="modal">
@@ -161,12 +137,12 @@
                 <h3 class="text-2xl font-bold text-slate-900" id="modalTitle">Etkinlik Düzenle</h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition text-2xl"><i class="fas fa-times"></i></button>
             </div>
-            <form id="activityForm" class="space-y-5">
-                <input type="hidden" id="editIndex">
-                <div class="grid grid-cols-2 gap-5">
+            <form id="activityForm" class="space-y-4">
+                <input type="hidden" id="editId">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">GÜN</label>
-                        <select id="formDay" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">GÜN</label>
+                        <select id="formDay" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm">
                             <option value="2">Gün 2</option>
                             <option value="3">Gün 3</option>
                             <option value="5">Gün 5</option>
@@ -175,225 +151,206 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">SAAT</label>
-                        <input type="text" id="formTime" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition" placeholder="Örn: 10:30">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">SAAT</label>
+                        <input type="text" id="formTime" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm" placeholder="Örn: 10:30">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">ETKİNLİK ADI</label>
-                    <input type="text" id="formName" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">ETKİNLİK ADI</label>
+                    <input type="text" id="formName" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm">
                 </div>
-                <div class="grid grid-cols-2 gap-5">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">SORUMLU</label>
-                        <input type="text" id="formLead" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">SORUMLU</label>
+                        <input type="text" id="formLead" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">İNTERAKTİFLİK (1-5)</label>
-                        <input type="number" id="formInteract" min="1" max="5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-5">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">YÖNTEM</label>
-                        <input type="text" id="formMethod" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">SÜRE</label>
-                        <input type="text" id="formDuration" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition" placeholder="Örn: 90 dk">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">İNTERAKTİFLİK (1-5)</label>
+                        <input type="number" id="formInteract" min="1" max="5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">SÜREÇ DETAYI</label>
-                    <textarea id="formProcess" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 outline-none focus:ring-2 focus:ring-emerald-500 transition"></textarea>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">SÜREÇ DETAYI</label>
+                    <textarea id="formProcess" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-20"></textarea>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">KAZANIM</label>
-                    <input type="text" id="formGoal" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">EKİPMAN</label>
-                    <input type="text" id="formEquip" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition">
-                </div>
-                <div class="flex gap-4 pt-6">
+                <div class="flex gap-4 pt-4">
                     <button type="button" onclick="closeModal()" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition">İptal</button>
-                    <button type="submit" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition shadow-xl shadow-emerald-100">Kaydet</button>
+                    <button type="submit" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition shadow-xl">Buluta Kaydet</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
-        // Veritabanı (LocalStorage'dan çek veya varsayılanı kullan)
-        let activities = JSON.parse(localStorage.getItem('digitopia_db')) || [
-            { day: 2, time: "10:30", duration: "90 dk", name: "Kickoff & Connections", lead: "İlayda", method: "Buzkıran Oyunları", process: "Dijital roller üzerinden tanışma ve enerji yükseltme.", goal: "Güçlü grup dinamiği ve güven ortamı.", equip: "Post-it, Marker, İsimlik", interact: 5 },
-            { day: 2, time: "12:00", duration: "60 dk", name: "E-Waste 101", lead: "Burak + Zeynepsu", method: "Deneyimsel Sunum", process: "Fiziksel atık örneklerinin masalarda incelenmesi.", goal: "Atık türlerini teknik olarak kavrama.", equip: "Anakart, Batarya, Büyüteç", interact: 3 },
-            { day: 2, time: "16:30", duration: "90 dk", name: "Crisis Simulation", lead: "Baran + Yağmur", method: "Role-Play", process: "E-atık kriz senaryosu yönetimi ve rol yapma.", goal: "Stratejik karar alma ve kriz yönetimi.", equip: "Senaryo Kartları, A0 Kağıt", interact: 5 },
-            { day: 3, time: "10:30", duration: "60 dk", name: "CBRN Mini Session", lead: "TESPAM", method: "Teknik Atölye", process: "Radyolojik ve tıbbi atık risklerinin incelenmesi.", goal: "Tehlikeli atık protokolleri.", equip: "Geiger Sayacı (Demo)", interact: 3 },
-            { day: 3, time: "14:30", duration: "90 dk", name: "Campaign & Feedback", lead: "TESPAM", method: "Akran Değerlendirmesi", process: "Hazırlanan kampanyaların sunumu ve jüri eleştirisi.", goal: "Hitabet ve yapıcı eleştiri kültürü.", equip: "Projeksiyon, Formlar", interact: 4 },
-            { day: 3, time: "16:30", duration: "90 dk", name: "Manifesto Writing", lead: "TESPAM", method: "Ortak Yazım", process: "Gençlik sürdürülebilirlik yol haritası oluşturma.", goal: "Kolektif sorumluluk ve resmi belge yazımı.", equip: "Laptop, Google Docs", interact: 4 },
-            { day: 5, time: "10:30", duration: "90 dk", name: "Digital Earth Interviews", lead: "Koordinatörler", method: "Saha Araştırması", process: "Kampüs içi mülakatlar ve veri toplama.", goal: "Sosyal araştırma ve toplumsal algı analizi.", equip: "Ses Kaydı, Soru Listesi", interact: 5 },
-            { day: 5, time: "12:00", duration: "90 dk", name: "ECO-UNO: Card Creation", lead: "Baran + BURAK", method: "Co-Creation", process: "5 ülkenin kendi oyun kartlarını tasarlaması.", goal: "Ürün geliştirme ve sürdürülebilirlik mesajı.", equip: "Boş Kartlar, Stickerlar", interact: 5 },
-            { day: 5, time: "14:30", duration: "90 dk", name: "Green Code: Cleanliness", lead: "BARAN", method: "Co-Creation", process: "Cihazlardan veri temizleme ve karbon ayak izi hesabı.", goal: "Dijital karbon salınımını azaltma.", equip: "Laptop, Wi-Fi", interact: 4 },
-            { day: 6, time: "14:30", duration: "90 dk", name: "Podcast Event @Tekmer", lead: "Zeynepsu", method: "Live Media", process: "Girişimcilik ve teknoloji trendleri üzerine canlı kayıt.", goal: "Dijital içerik üretimi ve profesyonel ağ.", equip: "tüm ihtiyaçlar giderilecek", interact: 4 },
-            { day: 7, time: "10:30", duration: "60 dk", name: "How Do I Delete My Data?", lead: "Bahadır", method: "Technical Session", process: "Sosyal medyadan nasıl verilerimi güvenli bir şekilde silebilirim hangi siteler ile hangi app'ler ile.", goal: "Veri egemenliği ve dijital mahremiyet.", equip: "Telefonlar, Wi-Fi", interact: 4 },
-            { day: 7, time: "12:00", duration: "90 dk", name: "Eco-Orienteering", lead: "ODTÜ Ekibi", method: "Gamification", process: "Harita ile kampüs içi sürdürülebilirlik görevleri.", goal: "Takım ruhu ve navigasyon yeteneği.", equip: "Harita, Pusula, Kontrol Kartı", interact: 5 },
-            { day: 7, time: "16:30", duration: "120 dk", name: "What I Take With Me", lead: "Büşra Hoca + Zeynepsu + BARAN ", method: "Reflective Walk", process: "Doğada yansıtıcı yürüyüş ve gelecek planı, ve kişilerden geleceğe dair ne yapacaklarına dair not bırakmaları", goal: "Gelecek eylem planı ve öz-farkındalık.", equip: "Günlük, Kalem", interact: 4 }
-        ];
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, signInAnonymously, getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        function renderTable(data = activities) {
+        const apiKey = "";
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'digitopia-default';
+
+        let activities = [];
+        let stats = { data: "42.8 GB", cards: "124" };
+        let currentFilter = 'all';
+
+        // --- AUTH & INITIALIZATION ---
+        const init = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth failed:", err);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+            
+            // Stats Listener
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), (snapshot) => {
+                if (snapshot.exists()) {
+                    stats = snapshot.data();
+                    document.getElementById('stat-data').innerText = stats.data;
+                    document.getElementById('stat-cards').innerText = stats.cards;
+                } else {
+                    // İlk kez oluştur
+                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), stats);
+                }
+            }, (err) => console.error("Stats error", err));
+
+            // Activities Listener
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'activities'), (snapshot) => {
+                activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Sırala: Gün ve Saat
+                activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+                renderTable();
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            }, (err) => console.error("Data error", err));
+        });
+
+        init();
+
+        // --- UI FUNCTIONS ---
+        window.renderTable = function(data = null) {
+            const displayData = data || (currentFilter === 'all' ? activities : activities.filter(a => a.day.toString() === currentFilter));
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
             document.getElementById('stat-total').innerText = activities.length + " Seans";
-            
-            data.forEach((act, index) => {
+
+            displayData.forEach((act) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors group";
-                
                 tr.innerHTML = `
                     <td class="px-6 py-5">
                         <div class="flex flex-col">
                             <span class="text-emerald-600 font-bold text-[10px] uppercase tracking-wider">Gün ${act.day}</span>
                             <span class="text-slate-900 font-bold text-sm">${act.time}</span>
-                            <span class="text-slate-400 text-[11px] font-medium">${act.duration}</span>
                         </div>
                     </td>
                     <td class="px-6 py-5">
                         <p class="font-bold text-slate-800 text-sm mb-1">${act.name}</p>
-                        <span class="status-badge bg-emerald-100 text-emerald-700">Onaylandı</span>
+                        <span class="status-badge bg-emerald-100 text-emerald-700">Canlı</span>
                     </td>
+                    <td class="px-6 py-5 font-semibold text-slate-700 text-sm">${act.lead}</td>
                     <td class="px-6 py-5">
-                        <p class="text-sm font-semibold text-slate-700">${act.lead}</p>
+                        <p class="text-[11px] text-slate-500 leading-relaxed max-w-[250px]">${act.process}</p>
                     </td>
-                    <td class="px-6 py-5">
-                        <p class="text-xs font-bold text-emerald-600 uppercase mb-1">${act.method}</p>
-                        <p class="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">${act.process}</p>
-                        <div class="mt-2 flex items-center gap-2">
-                            <i class="fas fa-tools text-[10px] text-slate-300"></i>
-                            <span class="text-[10px] text-slate-400 italic">${act.equip}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-5">
-                        <p class="text-[11px] text-slate-600 font-medium leading-snug max-w-[180px]">${act.goal}</p>
-                    </td>
+                    <td class="px-6 py-5 text-[11px] text-slate-600 font-medium">${act.goal || 'Belirlenmedi'}</td>
                     <td class="px-6 py-5 text-center">
-                        <div class="flex justify-center gap-0.5">
-                            ${Array(5).fill(0).map((_, i) => `<i class="fas fa-star text-[10px] ${i < act.interact ? 'interactivity-star' : 'text-slate-200'}"></i>`).join('')}
-                        </div>
+                        <div class="flex justify-center gap-0.5">${Array(5).fill(0).map((_, i) => `<i class="fas fa-star text-[10px] ${i < act.interact ? 'interactivity-star' : 'text-slate-200'}"></i>`).join('')}</div>
                     </td>
                     <td class="px-6 py-5 text-right no-print">
                         <div class="flex justify-end gap-2">
-                            <button onclick="editActivity(${activities.indexOf(act)})" class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"><i class="fas fa-edit"></i></button>
-                            <button onclick="deleteActivity(${activities.indexOf(act)})" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><i class="fas fa-trash"></i></button>
+                            <button onclick="editActivity('${act.id}')" class="p-2 text-slate-400 hover:text-emerald-600 transition"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteActivity('${act.id}')" class="p-2 text-slate-400 hover:text-red-500 transition"><i class="fas fa-trash"></i></button>
                         </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-            localStorage.setItem('digitopia_db', JSON.stringify(activities));
         }
 
-        // Modal Fonksiyonları
-        function openModal() {
+        window.openModal = () => {
             document.getElementById('activityForm').reset();
-            document.getElementById('editIndex').value = "";
-            document.getElementById('modalTitle').innerText = "Yeni Etkinlik Ekle";
+            document.getElementById('editId').value = "";
+            document.getElementById('modalTitle').innerText = "Buluta Yeni Etkinlik Ekle";
             document.getElementById('editModal').classList.add('active');
-        }
+        };
 
-        function closeModal() {
-            document.getElementById('editModal').classList.remove('active');
-        }
+        window.closeModal = () => document.getElementById('editModal').classList.remove('active');
 
-        function editActivity(index) {
-            const act = activities[index];
-            document.getElementById('editIndex').value = index;
+        window.editActivity = (id) => {
+            const act = activities.find(a => a.id === id);
+            if (!act) return;
+            document.getElementById('editId').value = id;
             document.getElementById('formDay').value = act.day;
             document.getElementById('formTime').value = act.time;
             document.getElementById('formName').value = act.name;
             document.getElementById('formLead').value = act.lead;
             document.getElementById('formInteract').value = act.interact;
-            document.getElementById('formMethod').value = act.method;
-            document.getElementById('formDuration').value = act.duration;
             document.getElementById('formProcess').value = act.process;
-            document.getElementById('formGoal').value = act.goal;
-            document.getElementById('formEquip').value = act.equip;
-            document.getElementById('modalTitle').innerText = "Etkinliği Düzenle";
+            document.getElementById('modalTitle').innerText = "Bulut Verisini Düzenle";
             document.getElementById('editModal').classList.add('active');
-        }
+        };
 
-        document.getElementById('activityForm').onsubmit = function(e) {
+        document.getElementById('activityForm').onsubmit = async (e) => {
             e.preventDefault();
-            const index = document.getElementById('editIndex').value;
-            const newAct = {
+            if (!auth.currentUser) return;
+            const id = document.getElementById('editId').value || crypto.randomUUID();
+            const data = {
                 day: parseInt(document.getElementById('formDay').value),
                 time: document.getElementById('formTime').value,
                 name: document.getElementById('formName').value,
                 lead: document.getElementById('formLead').value,
-                method: document.getElementById('formMethod').value,
-                duration: document.getElementById('formDuration').value,
                 interact: parseInt(document.getElementById('formInteract').value),
                 process: document.getElementById('formProcess').value,
-                goal: document.getElementById('formGoal').value,
-                equip: document.getElementById('formEquip').value
+                method: "Sync Method",
+                duration: "Managed"
             };
-
-            if (index === "") {
-                activities.push(newAct);
-            } else {
-                activities[index] = newAct;
-            }
-            
-            // Gün ve saate göre otomatik sırala
-            activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
-            
-            renderTable();
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'activities', id), data);
             closeModal();
         };
 
-        function deleteActivity(index) {
-            if(confirm('Bu etkinliği silmek istediğinize emin misiniz?')) {
-                activities.splice(index, 1);
-                renderTable();
+        window.deleteActivity = async (id) => {
+            if (confirm('Bu etkinlik buluttan kalıcı olarak silinsin mi?') && auth.currentUser) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'activities', id));
             }
-        }
+        };
 
-        function editStat(id, label) {
-            const newVal = prompt(`${label} için yeni değeri giriniz:`, document.getElementById(id).innerText);
-            if (newVal !== null) document.getElementById(id).innerText = newVal;
-        }
+        window.editStat = async (field, label) => {
+            const current = stats[field];
+            const newVal = prompt(`${label} yeni değerini girin:`, current);
+            if (newVal !== null && auth.currentUser) {
+                const newStats = { ...stats, [field]: newVal };
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global'), newStats);
+            }
+        };
 
-        function filterDay(day) {
-            document.querySelectorAll('.day-tab').forEach(btn => btn.classList.remove('tab-active'));
-            event.target.classList.add('tab-active');
-            if (day === 'all') renderTable();
-            else renderTable(activities.filter(a => a.day.toString() === day));
-        }
+        window.filterDay = (day) => {
+            currentFilter = day;
+            document.querySelectorAll('.day-tab').forEach(b => b.classList.toggle('tab-active', b.getAttribute('onclick').includes(`'${day}'`)));
+            renderTable();
+        };
 
-        function searchTable() {
+        window.searchTable = () => {
             const val = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = activities.filter(a => 
-                a.name.toLowerCase().includes(val) || 
-                a.lead.toLowerCase().includes(val) || 
-                a.method.toLowerCase().includes(val)
-            );
+            const filtered = activities.filter(a => a.name.toLowerCase().includes(val) || a.lead.toLowerCase().includes(val));
             renderTable(filtered);
-        }
+        };
 
-        function downloadPDF() {
+        window.downloadPDF = () => {
             const element = document.getElementById('pdf-content');
-            const opt = {
-                margin: 10,
-                filename: 'Digitopia_Egitim_Programi.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-            };
-            html2pdf().set(opt).from(element).save();
-        }
-
-        // Başlat
-        renderTable();
+            html2pdf().set({ margin: 10, filename: 'Digitopia_Bulut_Plan.pdf', jsPDF: { format: 'a4', orientation: 'landscape' } }).from(element).save();
+        };
     </script>
 </body>
 </html>
