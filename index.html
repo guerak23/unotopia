@@ -196,6 +196,7 @@
         let stats = { data: "42.8 GB", cards: "124" };
         let currentFilter = 'all';
         let isOnline = true;
+        const supabase = supabaseClient;
 
         // --- YEREL DEPOLAMA (localStorage) ---
         const storage = {
@@ -203,100 +204,6 @@
             setActivities: (data) => localStorage.setItem('digitopia_activities', JSON.stringify(data)),
             getStats: () => JSON.parse(localStorage.getItem('digitopia_stats') || '{"data":"42.8 GB","cards":"124"}'),
             setStats: (data) => localStorage.setItem('digitopia_stats', JSON.stringify(data))
-        };
-
-        // --- INITIALIZATION ---
-        const init = async () => {
-            try {
-                // Önce localStorage'dan yükle
-                activities = storage.getActivities();
-                stats = storage.getStats();
-                updateUI();
-
-                // Sonra Supabase'den senkronize et
-                await syncFromSupabase();
-                
-                // Real-time listener başlat
-                startRealtimeListener();
-                
-                isOnline = true;
-                updateConnectionStatus();
-            } catch (err) {
-                console.error("Init error:", err);
-                isOnline = false;
-                updateConnectionStatus();
-            }
-
-            document.getElementById('loading').style.opacity = '0';
-            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
-        };
-
-        // --- SUPABASE SYNC ---
-        const syncFromSupabase = async () => {
-            try {
-                // Activities yükle
-                const { data: activitiesData, error: activitiesError } = await supabase
-                    .from('activities')
-                    .select('*');
-                
-                if (activitiesError) throw activitiesError;
-                
-                if (activitiesData && activitiesData.length > 0) {
-                    activities = activitiesData.map(a => ({ 
-                        id: a.id, 
-                        day: a.day, 
-                        time: a.time, 
-                        name: a.name, 
-                        lead: a.lead, 
-                        interact: a.interact, 
-                        process: a.process,
-                        goal: a.goal,
-                        method: a.method,
-                        duration: a.duration
-                    }));
-                    storage.setActivities(activities);
-                    activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
-                }
-
-                // Stats yükle
-                const { data: statsData, error: statsError } = await supabase
-                    .from('stats')
-                    .select('*')
-                    .limit(1);
-                
-                if (statsError && statsError.code !== 'PGRST116') throw statsError;
-                
-                if (statsData && statsData.length > 0) {
-                    stats = { data: statsData[0].data, cards: statsData[0].cards };
-                    storage.setStats(stats);
-                }
-
-                updateUI();
-            } catch (err) {
-                console.error("Supabase sync error:", err);
-                // localStorage'dan devam et
-            }
-        };
-
-        // --- REAL-TIME LISTENER ---
-        const startRealtimeListener = () => {
-            // Activities listener
-            supabase
-                .channel('public:activities')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
-                    console.log('Activity change:', payload);
-                    syncFromSupabase();
-                })
-                .subscribe();
-
-            // Stats listener
-            supabase
-                .channel('public:stats')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'stats' }, (payload) => {
-                    console.log('Stats change:', payload);
-                    syncFromSupabase();
-                })
-                .subscribe();
         };
 
         // --- UPDATE UI ---
@@ -319,10 +226,119 @@
             }
         };
 
+        // --- SUPABASE SYNC ---
+        const syncFromSupabase = async () => {
+            try {
+                console.log('Syncing from Supabase...');
+                
+                // Activities yükle
+                const { data: activitiesData, error: activitiesError } = await supabase
+                    .from('activities')
+                    .select('*');
+                
+                if (activitiesError) {
+                    console.error('Activities error:', activitiesError);
+                } else if (activitiesData && activitiesData.length > 0) {
+                    activities = activitiesData.map(a => ({ 
+                        id: a.id, 
+                        day: a.day, 
+                        time: a.time, 
+                        name: a.name, 
+                        lead: a.lead, 
+                        interact: a.interact, 
+                        process: a.process,
+                        goal: a.goal,
+                        method: a.method,
+                        duration: a.duration
+                    }));
+                    storage.setActivities(activities);
+                    activities.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+                    console.log('Activities loaded:', activities.length);
+                }
+
+                // Stats yükle
+                const { data: statsData, error: statsError } = await supabase
+                    .from('stats')
+                    .select('*')
+                    .limit(1);
+                
+                if (statsError) {
+                    console.error('Stats error:', statsError);
+                } else if (statsData && statsData.length > 0) {
+                    stats = { data: statsData[0].data, cards: statsData[0].cards };
+                    storage.setStats(stats);
+                    console.log('Stats loaded:', stats);
+                }
+
+                updateUI();
+                isOnline = true;
+                updateConnectionStatus();
+            } catch (err) {
+                console.error("Supabase sync error:", err);
+                isOnline = false;
+                updateConnectionStatus();
+            }
+        };
+
+        // --- REAL-TIME LISTENER ---
+        const startRealtimeListener = () => {
+            try {
+                console.log('Starting real-time listeners...');
+                
+                // Activities listener
+                supabase
+                    .channel('public:activities')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
+                        console.log('Activity change:', payload);
+                        syncFromSupabase();
+                    })
+                    .subscribe();
+
+                // Stats listener
+                supabase
+                    .channel('public:stats')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'stats' }, (payload) => {
+                        console.log('Stats change:', payload);
+                        syncFromSupabase();
+                    })
+                    .subscribe();
+            } catch (err) {
+                console.error('Listener error:', err);
+            }
+        };
+
+        // --- INITIALIZATION ---
+        const init = async () => {
+            try {
+                console.log('Initializing app...');
+                
+                // Önce localStorage'dan yükle
+                activities = storage.getActivities();
+                stats = storage.getStats();
+                updateUI();
+
+                // Sonra Supabase'den senkronize et
+                await syncFromSupabase();
+                
+                // Real-time listener başlat
+                startRealtimeListener();
+                
+            } catch (err) {
+                console.error("Init error:", err);
+                isOnline = false;
+                updateConnectionStatus();
+            }
+
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+        };
+
         // Network detection
         window.addEventListener('online', () => { isOnline = true; updateConnectionStatus(); syncFromSupabase(); });
         window.addEventListener('offline', () => { isOnline = false; updateConnectionStatus(); });
 
+        // Start app
+        console.log('App starting...');
         init();
 
         // --- UI FUNCTIONS ---
